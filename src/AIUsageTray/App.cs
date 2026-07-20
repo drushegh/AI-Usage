@@ -285,7 +285,7 @@ public sealed class App : WpfApplication
     {
         if (_popup is null || !_popup.IsAlive)
         {
-            _popup = new UsagePopup(_clock, onRefresh: OnRefreshRequested, onExit: OnExitRequested);
+            _popup = new UsagePopup(_clock, onRefresh: OnRefreshRequested, onExit: OnExitRequested, onSettings: OnSettingsRequested);
         }
 
         _popup.Toggle(_currentView ?? EmptyView());
@@ -636,7 +636,7 @@ public sealed class App : WpfApplication
     {
         if (_popup is null || !_popup.IsAlive)
         {
-            _popup = new UsagePopup(_clock, onRefresh: OnRefreshRequested, onExit: OnExitRequested);
+            _popup = new UsagePopup(_clock, onRefresh: OnRefreshRequested, onExit: OnExitRequested, onSettings: OnSettingsRequested);
         }
 
         if (_popup.IsVisible)
@@ -720,7 +720,7 @@ public sealed class App : WpfApplication
         string result;
         try
         {
-            var popup = new UsagePopup(_clock, onRefresh: static () => { }, onExit: static () => { });
+            var popup = new UsagePopup(_clock, onRefresh: static () => { }, onExit: static () => { }, onSettings: static () => { });
             try
             {
                 var pngPath = Environment.GetEnvironmentVariable("AIUSAGE_SELFTEST_PNG");

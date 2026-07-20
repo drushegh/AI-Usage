@@ -56,6 +56,7 @@ public sealed class UsagePopup : Window
     private readonly TimeProvider _clock;
     private readonly Action _onRefresh;
     private readonly Action _onExit;
+    private readonly Action _onSettings;
     private readonly DispatcherTimer _ticker;
     private readonly List<CountdownCell> _countdowns = new();
     private readonly List<AgeCell> _ages = new();
@@ -72,11 +73,13 @@ public sealed class UsagePopup : Window
     /// <param name="clock">The one clock all countdowns and ages read "now" from (DESIGN.md §5 Countdowns).</param>
     /// <param name="onRefresh">The shared refresh path — the SAME callback the tray menu's "Refresh now" uses (T16).</param>
     /// <param name="onExit">The shared shutdown path — reuses the tray menu's Exit (T16).</param>
-    public UsagePopup(TimeProvider clock, Action onRefresh, Action onExit)
+    /// <param name="onSettings">The shared "open Settings" path — the SAME callback the tray menu's Settings uses.</param>
+    public UsagePopup(TimeProvider clock, Action onRefresh, Action onExit, Action onSettings)
     {
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _onRefresh = onRefresh ?? throw new ArgumentNullException(nameof(onRefresh));
         _onExit = onExit ?? throw new ArgumentNullException(nameof(onExit));
+        _onSettings = onSettings ?? throw new ArgumentNullException(nameof(onSettings));
 
         Title = "AI Usage";
         WindowStyle = WindowStyle.None;
@@ -369,7 +372,7 @@ public sealed class UsagePopup : Window
     {
         var refreshBtn = MakeButton("Refresh now", primary: true, enabled: true, _onRefresh);
 
-        var settingsBtn = MakeButton("Settings", primary: false, enabled: false, null);
+        var settingsBtn = MakeButton("Settings", primary: false, enabled: true, _onSettings);
         settingsBtn.Margin = new Thickness(0, 0, 8, 0);
         var exitBtn = MakeButton("Exit", primary: false, enabled: true, _onExit);
 
