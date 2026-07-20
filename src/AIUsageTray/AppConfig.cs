@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -39,7 +40,16 @@ public sealed record AppConfig(
     bool FirstRunShown = false,
     decimal WarnPercent = 80m,
     decimal CritPercent = 90m,
-    int CodexTtlMinutes = 20)
+    int CodexTtlMinutes = 20,
+    // ---- USER-SET display fallbacks (owner feedback r4). Shown ONLY when the provider has not
+    // reported the value, always attributed as the owner's own setting, never styled LIVE. These do
+    // NOT feed DisplayConfig / the accuracy engine — they are the owner's ground truth for a gap, not
+    // an app-invented figure (the HARD RULE forbids the app estimating provider data, not the owner
+    // filling in what they already know). Null = not set. ----
+    string? ClaudePlan = null,
+    string? CodexPlan = null,
+    DayOfWeek? CodexWeeklyResetDay = null,
+    string? CodexWeeklyResetTime = null)
 {
     /// <summary>The shipped default: Claude ON, first-run hint not yet shown, thresholds/TTL = <see cref="DisplayConfig.Default"/>.</summary>
     public static AppConfig Default { get; } = new(ClaudeEnabled: true, FirstRunShown: false);
@@ -55,6 +65,44 @@ public sealed record AppConfig(
         ClaudeCurrentTtl: DisplayConfig.Default.ClaudeCurrentTtl,
         WarnPercent: WarnPercent,
         CritPercent: CritPercent);
+
+    /// <summary>
+    /// The next occurrence (in <paramref name="nowLocal"/>'s zone) of the owner's configured Codex weekly
+    /// reset (day-of-week + <c>HH:mm</c>), or <c>null</c> if unset or the time is unparseable. USER-PROVIDED
+    /// fallback only — surfaced when the provider hasn't reported a reset, always tagged "your setting",
+    /// never a LIVE countdown styled as provider-reported (accuracy contract).
+    /// </summary>
+    public DateTimeOffset? NextCodexWeeklyReset(DateTimeOffset nowLocal)
+    {
+        if (CodexWeeklyResetDay is not { } day) return null;
+        if (!TimeOnly.TryParse(CodexWeeklyResetTime, CultureInfo.InvariantCulture, DateTimeStyles.None, out var time)) return null;
+
+        int delta = ((int)day - (int)nowLocal.DayOfWeek + 7) % 7;
+        var candidate = new DateTimeOffset(
+            nowLocal.Year, nowLocal.Month, nowLocal.Day, time.Hour, time.Minute, 0, nowLocal.Offset).AddDays(delta);
+        if (candidate <= nowLocal) candidate = candidate.AddDays(7);
+        return candidate;
+    }
+}
+
+/// <summary>
+/// The owner's manually-entered values used only to fill gaps the providers haven't reported (owner
+/// feedback r4). Built from <see cref="AppConfig"/> and handed to the popup, which renders each ONLY when
+/// the matching provider metric is n/a, always attributed as the owner's own setting. Never LIVE-styled.
+/// </summary>
+/// <param name="ClaudePlan">Owner's Claude plan label, or null.</param>
+/// <param name="CodexPlan">Owner's Codex plan label, or null.</param>
+/// <param name="CodexWeeklyReset">Next occurrence of the owner's Codex weekly-reset schedule, or null.</param>
+public sealed record UserFallbacks(string? ClaudePlan, string? CodexPlan, DateTimeOffset? CodexWeeklyReset)
+{
+    /// <summary>Empty — nothing configured.</summary>
+    public static UserFallbacks None { get; } = new(null, null, null);
+
+    /// <summary>The owner's plan fallback for a provider id, or null if none is set for it.</summary>
+    public string? PlanFor(string providerId)
+        => string.Equals(providerId, "claude", StringComparison.OrdinalIgnoreCase) ? ClaudePlan
+         : string.Equals(providerId, "codex", StringComparison.OrdinalIgnoreCase) ? CodexPlan
+         : null;
 }
 
 /// <summary>
@@ -121,7 +169,11 @@ public sealed class AppConfigStore
                 dto.FirstRunShown,
                 dto.WarnPercent ?? AppConfig.Default.WarnPercent,
                 dto.CritPercent ?? AppConfig.Default.CritPercent,
-                dto.CodexTtlMinutes ?? AppConfig.Default.CodexTtlMinutes);
+                dto.CodexTtlMinutes ?? AppConfig.Default.CodexTtlMinutes,
+                string.IsNullOrWhiteSpace(dto.ClaudePlan) ? null : dto.ClaudePlan.Trim(),
+                string.IsNullOrWhiteSpace(dto.CodexPlan) ? null : dto.CodexPlan.Trim(),
+                dto.CodexWeeklyResetDay,
+                string.IsNullOrWhiteSpace(dto.CodexWeeklyResetTime) ? null : dto.CodexWeeklyResetTime.Trim());
 
             return SettingsValidation.Clamp(config);
         }
@@ -156,6 +208,10 @@ public sealed class AppConfigStore
                     WarnPercent = config.WarnPercent,
                     CritPercent = config.CritPercent,
                     CodexTtlMinutes = config.CodexTtlMinutes,
+                    ClaudePlan = config.ClaudePlan,
+                    CodexPlan = config.CodexPlan,
+                    CodexWeeklyResetDay = config.CodexWeeklyResetDay,
+                    CodexWeeklyResetTime = config.CodexWeeklyResetTime,
                 },
                 JsonOptions);
             File.WriteAllText(_path, json);
@@ -193,5 +249,17 @@ public sealed class AppConfigStore
 
         [JsonPropertyName("codexTtlMinutes")]
         public int? CodexTtlMinutes { get; set; }
+
+        [JsonPropertyName("claudePlan")]
+        public string? ClaudePlan { get; set; }
+
+        [JsonPropertyName("codexPlan")]
+        public string? CodexPlan { get; set; }
+
+        [JsonPropertyName("codexWeeklyResetDay")]
+        public DayOfWeek? CodexWeeklyResetDay { get; set; }
+
+        [JsonPropertyName("codexWeeklyResetTime")]
+        public string? CodexWeeklyResetTime { get; set; }
     }
 }

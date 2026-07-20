@@ -1,0 +1,6 @@
+<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+  <!-- AI-Usage "Twin-Stop Gauge" — pixel-fit 16px master (beefier arcs, wider gaps, no keyline). -->
+  <rect x="0.5" y="0.5" width="15" height="15" rx="3.2" fill="#182027"/>
+  <path d="M 6.46 3.77 A 4.5 4.5 0 0 0 6.46 12.23" fill="none" stroke="#EAA93E" stroke-width="3" stroke-linecap="butt"/>
+  <path d="M 9.54 12.23 A 4.5 4.5 0 0 0 9.54 3.77" fill="none" stroke="#43C9B8" stroke-width="3" stroke-linecap="butt"/>
+</svg>

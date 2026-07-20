@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Build-time only: assembles the multi-resolution AiUsage.ico from per-size PNGs.
+       Not part of the app; not referenced by the solution's runtime projects. UseWPF is
+       only for the in-box PngBitmapDecoder (no NuGet packages). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>IcoBuilder</AssemblyName>
+    <RootNamespace>IcoBuilder</RootNamespace>
+  </PropertyGroup>
+</Project>

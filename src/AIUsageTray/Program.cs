@@ -27,6 +27,16 @@ internal static class Program
         // is crisp on mixed-DPI monitors. Best-effort: a false return (already set / unsupported) is fine.
         System.Windows.Forms.Application.SetHighDpiMode(System.Windows.Forms.HighDpiMode.PerMonitorV2);
 
+        // The guarded offscreen self-test (AIUSAGE_SELFTEST) constructs a window off-screen, renders it,
+        // and exits immediately — it never shows a tray icon. It must therefore NOT be gated by the
+        // single-instance mutex, so a dev/CI render can run while a real instance is already live.
+        // App.OnStartup runs the self-test path and shuts down; we just skip acquiring the mutex here.
+        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AIUSAGE_SELFTEST")))
+        {
+            Environment.ExitCode = new App().Run();
+            return;
+        }
+
         using var mutex = new Mutex(initiallyOwned: true, SingleInstanceMutexName, out bool createdNew);
         if (!createdNew)
         {

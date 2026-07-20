@@ -1,0 +1,8 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <!-- AI-Usage "Twin-Stop Gauge" — master (renders 256/64/48/32/24). See VISUAL-IDENTITY.md §2. -->
+  <rect x="16" y="16" width="224" height="224" rx="48" fill="#182027" stroke="#34414D" stroke-width="2"/>
+  <!-- Claude = amber, left arc (104deg -> 256deg, bulging west) -->
+  <path d="M 110.9 60.1 A 70 70 0 0 0 110.9 195.9" fill="none" stroke="#EAA93E" stroke-width="28" stroke-linecap="butt"/>
+  <!-- Codex = teal, right arc (284deg -> 76deg, bulging east) -->
+  <path d="M 145.1 195.9 A 70 70 0 0 0 145.1 60.1" fill="none" stroke="#43C9B8" stroke-width="28" stroke-linecap="butt"/>
+</svg>

@@ -93,8 +93,11 @@ Settings live in the tray's Settings window and persist to `%LOCALAPPDATA%\AIUsa
 | Notifications | On | Threshold and provider-transition balloons. |
 | Start with Windows | Off | Adds or removes a per-user start-at-logon entry. |
 | Claude usage | On | Enables the Claude collector; turn it off to stop reading the endpoint entirely. |
+| Overrides (plan · Codex weekly reset) | unset | Optional values you already know — your plan and your Codex weekly-reset schedule. |
 
 A threshold notification fires once per window per crossing and re-arms only when that window resets — it never nags every refresh. Raising the freshness window changes *when* a Codex reading becomes DATED; it never authorizes an estimate.
+
+**Overrides never bend the accuracy rule.** The plan and Codex weekly-reset you enter under *Settings → Overrides* are shown **only** where the provider itself reported nothing, always tagged as *your setting* — never coloured or styled as a live, provider-reported figure. They fill a blank with what you know; they never overwrite real data or invent one.
 
 ## Under the hood
 

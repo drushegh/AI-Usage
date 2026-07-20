@@ -11,11 +11,13 @@ namespace AIUsageTray;
 /// <see cref="Update"/> — all <see cref="NotifyIcon"/> mutation happens on that one UI thread.
 /// </summary>
 /// <remarks>
-/// <b>GDI handle discipline.</b> Each repaint converts a freshly drawn bitmap to an <c>HICON</c> via
-/// <see cref="Bitmap.GetHicon"/> and wraps it with <see cref="Icon.FromHandle"/> (which does NOT own the
-/// handle). Once the shell has copied the new icon, the PREVIOUS icon and its GDI handle are released
-/// with <see cref="NativeMethods.DestroyIcon"/> — without that explicit destroy every repaint would leak
-/// an icon handle.
+/// <b>GDI handle discipline (VISUAL-IDENTITY.md §6.4).</b> Each repaint converts a freshly drawn bitmap to
+/// a raw <c>HICON</c> via <see cref="Bitmap.GetHicon"/>, wraps it with <see cref="Icon.FromHandle"/> (which
+/// does NOT own the handle), then immediately clones that wrapper into an independent, self-owning
+/// <see cref="Icon"/> — the raw temp handle is destroyed with <see cref="NativeMethods.DestroyIcon"/> in a
+/// <c>finally</c> right after the clone, never left for later. Only the clone is ever assigned to
+/// <see cref="NotifyIcon.Icon"/> or tracked in <see cref="_currentIcon"/>; the PREVIOUSLY displayed clone
+/// is disposed only once the new one is live. See <see cref="SetIcon"/>.
 /// </remarks>
 public sealed class TrayIconController : IDisposable
 {
@@ -28,11 +30,10 @@ public sealed class TrayIconController : IDisposable
     private readonly int _iconSize;
 
     // After this many consecutive icon-render failures, stop showing a (now stale) last-good icon and degrade
-    // to the honest all-unknown "?" — a stale "safe" icon is worse than an explicit "cannot tell" (§7).
+    // to the honest track-only "?" state — a stale "safe" icon is worse than an explicit "cannot tell" (§7).
     private const int RenderFailureDegradeThreshold = 3;
 
     private Icon? _currentIcon;
-    private nint _currentIconHandle;
     private int _consecutiveRenderFailures;
     private bool _disposed;
 
@@ -95,12 +96,12 @@ public sealed class TrayIconController : IDisposable
             }
         };
 
-        // Nothing observed yet → the neutral all-unknown "?" state, never a plain "safe" icon (§7). Route the
-        // INITIAL paint through the SAME contained path as every later render (review NEW-1): a GDI fault here
-        // (session-start / RDP is exactly when GDI throws) must not escape the ctor and, via the App's startup
-        // backstop, leave a mutex-holding half-initialised zombie. A failed initial paint is swallowed and
-        // simply retried on the first Update.
-        _ = TryRenderAndSet(Severity.Normal, unknown: true, allUnknown: true);
+        // Nothing observed yet → track + badge only, never a plain "safe" icon (VISUAL-IDENTITY.md §4.5 R6).
+        // Route the INITIAL paint through the SAME contained path as every later render (review NEW-1): a GDI
+        // fault here (session-start / RDP is exactly when GDI throws) must not escape the ctor and, via the
+        // App's startup backstop, leave a mutex-holding half-initialised zombie. A failed initial paint is
+        // swallowed and simply retried on the first Update.
+        _ = TryRenderAndSet(TrayIconState.NoData);
     }
 
     /// <summary>
@@ -118,22 +119,24 @@ public sealed class TrayIconController : IDisposable
         // A render throw (transient GDI fault under lock-screen / RDP / handle pressure) must NEVER propagate
         // to the dispatcher and take the tray down — a silently-absent monitor is the worst failure (§7;
         // review P1-4). On failure we keep the last-good icon for a transient blip, then degrade to the
-        // honest all-unknown "?" once failures persist so a stale "safe" icon can't mislead.
-        if (TryRenderAndSet(view.OverallSeverity, view.Unknown, view.AllUnknown))
+        // honest track-only "?" state once failures persist so a stale "safe" icon can't mislead.
+        var state = TrayIconState.Compute(view);
+        if (TryRenderAndSet(state))
         {
             _consecutiveRenderFailures = 0;
         }
         else if (++_consecutiveRenderFailures >= RenderFailureDegradeThreshold)
         {
-            _ = TryRenderAndSet(Severity.Normal, unknown: true, allUnknown: true);
+            _ = TryRenderAndSet(TrayIconState.NoData);
         }
 
         TrySetTooltip(view);
     }
 
     /// <summary>
-    /// Force the neutral all-unknown "?" icon (DESIGN.md §7) defensively — the App's exception backstop calls
-    /// this after repeated faults so a stale last-good icon can't keep reading as "safe". Never throws.
+    /// Force the neutral track-only "?" icon (VISUAL-IDENTITY.md §4.5 R6) defensively — the App's exception
+    /// backstop calls this after repeated faults so a stale last-good icon can't keep reading as "safe".
+    /// Never throws.
     /// </summary>
     public void ShowAllUnknown()
     {
@@ -142,7 +145,7 @@ public sealed class TrayIconController : IDisposable
             return;
         }
 
-        _ = TryRenderAndSet(Severity.Normal, unknown: true, allUnknown: true);
+        _ = TryRenderAndSet(TrayIconState.NoData);
     }
 
     /// <summary>
@@ -150,12 +153,12 @@ public sealed class TrayIconController : IDisposable
     /// (logged token-free) and reported as <c>false</c> so the caller can keep the last-good icon or degrade,
     /// never letting a draw failure escape onto the dispatcher.
     /// </summary>
-    private bool TryRenderAndSet(Severity severity, bool unknown, bool allUnknown)
+    private bool TryRenderAndSet(TrayIconState state)
     {
         try
         {
-            var lightTaskbar = SystemTheme.IsLightTaskbar();
-            using var bitmap = IconRenderer.Render(severity, unknown, allUnknown, _iconSize, lightTaskbar);
+            var highContrast = SystemInformation.HighContrast;
+            using var bitmap = IconRenderer.Render(state, _iconSize, highContrast);
             SetIcon(bitmap);
             return true;
         }
@@ -207,26 +210,34 @@ public sealed class TrayIconController : IDisposable
     }
 
     /// <summary>
-    /// Push a freshly drawn bitmap to the tray as an icon, then release the PREVIOUSLY displayed icon
-    /// and its GDI handle (the shell has already copied the new one).
+    /// Push a freshly drawn bitmap to the tray as an icon using the clone-owning dispose pattern
+    /// (VISUAL-IDENTITY.md §6.4): <see cref="Bitmap.GetHicon"/> allocates a raw HICON the caller owns;
+    /// <see cref="Icon.FromHandle"/> wraps it WITHOUT taking ownership, so the wrapper is cloned into an
+    /// independent, self-owning <see cref="Icon"/> and the raw temp handle is destroyed immediately in a
+    /// <c>finally</c> — the naive "assign the FromHandle wrapper, destroy the handle later" pattern leaks
+    /// under an exception between those two steps. The clone is assigned to the tray, and only THEN is the
+    /// PREVIOUSLY displayed clone disposed (its <c>Dispose()</c> genuinely releases its own GDI resources,
+    /// unlike a bare <c>FromHandle</c> wrapper's no-op dispose).
     /// </summary>
     private void SetIcon(Bitmap bitmap)
     {
-        nint newHandle = bitmap.GetHicon();
-        var newIcon = Icon.FromHandle(newHandle); // does NOT take ownership of newHandle
-
-        var oldIcon = _currentIcon;
-        var oldHandle = _currentIconHandle;
-
-        _notifyIcon.Icon = newIcon;
-        _currentIcon = newIcon;
-        _currentIconHandle = newHandle;
-
-        oldIcon?.Dispose();
-        if (oldHandle != 0)
+        nint tempHandle = bitmap.GetHicon();
+        Icon owned;
+        try
         {
-            _ = NativeMethods.DestroyIcon(oldHandle);
+            using var temp = Icon.FromHandle(tempHandle);
+            owned = (Icon)temp.Clone();
         }
+        finally
+        {
+            _ = NativeMethods.DestroyIcon(tempHandle); // destroy the temp handle NOW, exception or not
+        }
+
+        var previous = _currentIcon;
+        _notifyIcon.Icon = owned;
+        _currentIcon = owned;
+
+        previous?.Dispose();
     }
 
     private static ContextMenuStrip BuildMenu(
@@ -316,10 +327,5 @@ public sealed class TrayIconController : IDisposable
 
         _currentIcon?.Dispose();
         _currentIcon = null;
-        if (_currentIconHandle != 0)
-        {
-            _ = NativeMethods.DestroyIcon(_currentIconHandle);
-            _currentIconHandle = 0;
-        }
     }
 }

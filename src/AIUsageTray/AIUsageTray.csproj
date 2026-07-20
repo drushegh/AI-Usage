@@ -16,7 +16,16 @@
     <!-- PerMonitorV2 DPI awareness for the WPF popup (task T14). Declared in the manifest rather
          than <ApplicationHighDpiMode> so the legacy dpiAware fallback ships too. -->
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Static brand icon (VISUAL-IDENTITY.md §2/§6). Sets the PE resource icon: Explorer,
+         taskbar, Alt-Tab, Start Menu. The live tray NotifyIcon uses IconRenderer, never this. -->
+    <ApplicationIcon>..\..\assets\icon\AiUsage.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Same .ico bundled as a WPF resource so windows can set Window.Icon explicitly
+         (title-bar/Alt-Tab consistency): pack://application:,,,/AiUsage.ico -->
+    <Resource Include="..\..\assets\icon\AiUsage.ico" Link="AiUsage.ico" />
+  </ItemGroup>
 
   <!-- Zero third-party runtime NuGet packages (DESIGN.md §2). CommunityToolkit.Mvvm
        is permitted later in the UI layer only; not needed for the boot skeleton. -->

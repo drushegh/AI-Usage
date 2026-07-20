@@ -247,6 +247,7 @@ public sealed class App : WpfApplication
         {
             try
             {
+                ApplyPopupContext(popup);
                 popup.Update(view);
             }
             catch (Exception ex)
@@ -254,6 +255,21 @@ public sealed class App : WpfApplication
                 System.Diagnostics.Debug.WriteLine($"Popup update failed: {ex.GetType().Name}");
             }
         }
+    }
+
+    /// <summary>
+    /// Hand the popup its DISPLAY context (not the accuracy engine): the current warn/crit thresholds — for
+    /// the bar threshold ticks and the DATED historic-severity label — and the owner's user-set fallbacks
+    /// (plan + the next occurrence of the configured Codex weekly reset, computed against "now"). The
+    /// fallbacks surface ONLY where the provider itself reported nothing, always attributed as the owner's
+    /// setting — never as a LIVE, provider-reported figure (the HARD RULE).
+    /// </summary>
+    private void ApplyPopupContext(UsagePopup popup)
+    {
+        popup.Thresholds = (_config.WarnPercent, _config.CritPercent);
+        var nowLocal = _clock.GetUtcNow().ToLocalTime();
+        popup.Fallbacks = new UserFallbacks(
+            _appConfig.ClaudePlan, _appConfig.CodexPlan, _appConfig.NextCodexWeeklyReset(nowLocal));
     }
 
     /// <summary>
@@ -288,6 +304,7 @@ public sealed class App : WpfApplication
             _popup = new UsagePopup(_clock, onRefresh: OnRefreshRequested, onExit: OnExitRequested, onSettings: OnSettingsRequested);
         }
 
+        ApplyPopupContext(_popup);
         _popup.Toggle(_currentView ?? EmptyView());
     }
 
@@ -472,9 +489,10 @@ public sealed class App : WpfApplication
     /// <see cref="DisplayConfig"/> from the new thresholds + Codex TTL and re-creates the
     /// <see cref="NotificationDecider"/> so the icon, notifications, and the next
     /// <see cref="UsageViewBuilder"/> build all use the new values; flips the Claude kill switch if it
-    /// changed; writes/removes the HKCU Run autostart value; persists everything; then repaints LIVE and
-    /// kicks a rescan. Runs on the dispatcher thread. Never throws — every persistence side-effect
-    /// (config save, registry write) is already best-effort/swallowing.
+    /// changed; writes/removes the HKCU Run autostart value; applies the owner's plan/weekly-reset override
+    /// fields (blank text trimmed to <c>null</c> — unset, never an app-invented value); persists everything;
+    /// then repaints LIVE and kicks a rescan. Runs on the dispatcher thread. Never throws — every
+    /// persistence side-effect (config save, registry write) is already best-effort/swallowing.
     /// </summary>
     private void ApplySettings(SettingsResult result)
     {
@@ -485,6 +503,10 @@ public sealed class App : WpfApplication
             CritPercent = result.CritPercent,
             CodexTtlMinutes = result.CodexTtlMinutes,
             ClaudeEnabled = result.ClaudeEnabled,
+            ClaudePlan = string.IsNullOrWhiteSpace(result.ClaudePlan) ? null : result.ClaudePlan.Trim(),
+            CodexPlan = string.IsNullOrWhiteSpace(result.CodexPlan) ? null : result.CodexPlan.Trim(),
+            CodexWeeklyResetDay = result.CodexWeeklyResetDay,
+            CodexWeeklyResetTime = string.IsNullOrWhiteSpace(result.CodexWeeklyResetTime) ? null : result.CodexWeeklyResetTime.Trim(),
         });
         _appConfig = updated;
 
@@ -639,6 +661,7 @@ public sealed class App : WpfApplication
             _popup = new UsagePopup(_clock, onRefresh: OnRefreshRequested, onExit: OnExitRequested, onSettings: OnSettingsRequested);
         }
 
+        ApplyPopupContext(_popup);
         if (_popup.IsVisible)
         {
             _popup.Activate();
@@ -721,6 +744,10 @@ public sealed class App : WpfApplication
         try
         {
             var popup = new UsagePopup(_clock, onRefresh: static () => { }, onExit: static () => { }, onSettings: static () => { });
+            // Give the smoke render the same display context the live path supplies, so the self-test also
+            // exercises the threshold ticks, the DATED historic-severity label, and the user-set fallbacks.
+            popup.Thresholds = (80m, 90m);
+            popup.Fallbacks = new UserFallbacks("Max 20×", "Plus", _clock.GetUtcNow().ToLocalTime().AddDays(3).AddHours(2));
             try
             {
                 var pngPath = Environment.GetEnvironmentVariable("AIUSAGE_SELFTEST_PNG");

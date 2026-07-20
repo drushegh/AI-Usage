@@ -40,7 +40,7 @@ every logon after.
 ### Don't want start-at-logon?
 Autostart is its own MSI feature, installed by default. To install **without** it:
 ```powershell
-msiexec /i AIUsage-1.0.1-win-x64.msi REMOVE=AutoStart
+msiexec /i AIUsage-1.0.2-win-x64.msi REMOVE=AutoStart
 ```
 (You can always toggle it later from the app's own settings.)
 
@@ -51,7 +51,7 @@ and installs the new one in place (no need to uninstall first).
 ### Uninstall
 **Settings -> Apps -> Installed apps -> AI-Usage -> Uninstall**, or:
 ```powershell
-msiexec /x AIUsage-1.0.1-win-x64.msi
+msiexec /x AIUsage-1.0.2-win-x64.msi
 ```
 This removes the app, the shortcut, and the autostart entry. Your
 `%LOCALAPPDATA%\AIUsage\config.json` is left in place.
@@ -68,7 +68,7 @@ drops the `.msi` next to itself in `Installer/`.
 
 ```powershell
 # from the Installer/ folder:
-./build-msi.ps1                 # -> Installer/AIUsage-1.0.1-win-x64.msi
+./build-msi.ps1                 # -> Installer/AIUsage-1.0.2-win-x64.msi
 ./build-msi.ps1 -Version 1.2.0  # set the product version
 ```
 
@@ -94,7 +94,7 @@ it standalone, use the WiX CLI pinned in this project's local tool manifest
 (`.config/dotnet-tools.json` — WiX v5, so no v6/v7 EULA gate):
 ```powershell
 dotnet tool restore
-dotnet wix msi validate -sice ICE38 -sice ICE64 -sice ICE91 .\AIUsage-1.0.1-win-x64.msi
+dotnet wix msi validate -sice ICE38 -sice ICE64 -sice ICE91 .\AIUsage-1.0.2-win-x64.msi
 ```
 `ICE38`/`ICE64`/`ICE91` are suppressed because they are known false-positives for
 a per-user install whose payload lives in the user profile (see the comments in

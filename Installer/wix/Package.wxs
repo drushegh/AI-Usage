@@ -43,6 +43,12 @@
          'Repair' button for a per-user xcopy-style app). -->
     <Property Id="ARPNOREPAIR" Value="1" />
 
+    <!-- Brand icon (VISUAL-IDENTITY.md §6.5): the Twin-Stop Gauge in Add/Remove Programs
+         and on the Start Menu shortcut. Installer/bootstrapper branding never uses the live
+         severity tray glyph — only this static mark. -->
+    <Icon Id="AiUsageIco" SourceFile="..\..\assets\icon\AiUsage.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AiUsageIco" />
+
     <!-- ============================ Directories ============================ -->
     <!-- %LOCALAPPDATA%\Programs\AIUsage  — the same per-user location the
          PowerShell installer used, so the two installers are interchangeable. -->
@@ -123,7 +129,8 @@
                 Name="AI-Usage"
                 Description="AI-Usage — combined Claude + Codex usage tray"
                 Target="[INSTALLFOLDER]AIUsageTray.exe"
-                WorkingDirectory="INSTALLFOLDER" />
+                WorkingDirectory="INSTALLFOLDER"
+                Icon="AiUsageIco" />
       <!-- Per-user shortcut components need an HKCU key path (Windows Installer
            requirement); this value also lets the component uninstall cleanly. -->
       <RegistryValue Root="HKCU"
