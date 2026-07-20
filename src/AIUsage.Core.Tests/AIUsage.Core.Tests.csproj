@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Portable net9.0 (NOT -windows) and NO UseWPF/UseWindowsForms. This is itself a
+         layering assertion: a portable test project can only compile against a portable
+         AIUsage.Core. If the core ever took a WPF/WinForms dependency, this project would
+         stop building. (TODO(net10): bump with the rest when the .NET 10 SDK lands.) -->
+    <TargetFramework>net9.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <!-- Test-only packages (xUnit + the .NET test SDK), pinned to the same versions as
+       AIUsageTray.Tests. No third-party RUNTIME package reaches AIUsage.Core (DESIGN.md §2). -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AIUsage.Core\AIUsage.Core.csproj" />
+  </ItemGroup>
+
+  <!-- Link the DEFINITIVE E3 Codex fixtures (single source of truth in spikes/) into the test output
+       under Fixtures/, so CodexSessionParserTests can read them portably from AppContext.BaseDirectory.
+       No copy lives in the source tree — the spike fixtures are used verbatim as the parser's inputs. -->
+  <ItemGroup>
+    <None Include="..\..\spikes\e3-codex-sessions\*.jsonl"
+          Link="Fixtures\%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Link the DEFINITIVE E1 Claude oauth/usage capture (spikes/e1-claude-payloads/raw-capture-1.json)
+       into the test output under Fixtures/, so ClaudeUsageParserTests reads the real payload verbatim.
+       Single source of truth in spikes/ — no copy lives in the source tree. -->
+  <ItemGroup>
+    <None Include="..\..\spikes\e1-claude-payloads\raw-capture-1.json"
+          Link="Fixtures\%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

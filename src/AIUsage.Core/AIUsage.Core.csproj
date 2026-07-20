@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- UI-free portable DOMAIN CORE. TFM is net9.0 (NOT net9.0-windows) on purpose:
+         BCL only, no WPF/WinForms/Windows-desktop dependency. The portable TFM is the
+         layering guard — a WPF/WinForms `using` simply will not compile here, so the
+         accuracy contract cannot accidentally take a UI dependency.
+         TODO(net10): DESIGN.md §2 settles on .NET 10 LTS; only the .NET 9 SDK is
+         installed today. Bump to net10.0 with the rest of the solution when it lands
+         (see Directory.Build.props). Nothing here is .NET-9-specific. -->
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>AIUsage.Core</RootNamespace>
+    <AssemblyName>AIUsage.Core</AssemblyName>
+  </PropertyGroup>
+
+  <!-- Zero third-party runtime NuGet packages (DESIGN.md §2/§3). BCL only:
+       System.* is all this domain core needs. -->
+
+</Project>

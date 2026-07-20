@@ -1,0 +1,87 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- TODO(net10): net9.0-windows because only the .NET 9 SDK is installed here.
+         DESIGN.md §2 targets .NET 10 LTS; bump to net10.0-windows when its SDK lands
+         (see Directory.Build.props for the full note). -->
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <!-- Code-only WPF app: no App.xaml ApplicationDefinition, so no generated Main.
+         Program.Main is the single [STAThread] entry point. -->
+    <StartupObject>AIUsageTray.Program</StartupObject>
+    <RootNamespace>AIUsageTray</RootNamespace>
+    <AssemblyName>AIUsageTray</AssemblyName>
+    <!-- PerMonitorV2 DPI awareness for the WPF popup (task T14). Declared in the manifest rather
+         than <ApplicationHighDpiMode> so the legacy dpiAware fallback ships too. -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <!-- Zero third-party runtime NuGet packages (DESIGN.md §2). CommunityToolkit.Mvvm
+       is permitted later in the UI layer only; not needed for the boot skeleton. -->
+
+  <!-- The UI-free domain core. This project reference makes the layering real: the tray
+       (net9.0-windows) depends on AIUsage.Core (portable net9.0), never the reverse — the
+       accuracy contract lives below the UI. -->
+  <ItemGroup>
+    <ProjectReference Include="..\AIUsage.Core\AIUsage.Core.csproj" />
+
+    <!-- Build-ORDER dependency only (T42): the Claude collector is a short-lived sibling EXE that
+         ProcessClaudeProbeRunner launches by absolute path (AppContext.BaseDirectory), never an
+         assembly the tray links against. ReferenceOutputAssembly=false keeps the probe's (identical
+         net9.0-windows) output out of the tray's compile/runtime closure — but the reference still
+         forces the probe to build BEFORE the CopyClaudeProbe target below runs. -->
+    <ProjectReference Include="..\ClaudeUsageProbe\ClaudeUsageProbe.csproj"
+                      ReferenceOutputAssembly="false"
+                      Private="false"
+                      SkipGetTargetFrameworkProperties="true" />
+  </ItemGroup>
+
+  <!-- Ship the probe next to the tray exe (T42/DESIGN §2/§6). ClaudeUsageProbe is a framework-dependent
+       .NET app, so its runnable payload is the apphost EXE *plus* the managed DLL, its runtimeconfig and
+       its deps.json — all four must sit together for `ClaudeUsageProbe.exe` to launch. We stage them into
+       $(OutDir) so ProcessClaudeProbeRunner's `Path.Combine(AppContext.BaseDirectory, "ClaudeUsageProbe.exe")`
+       resolves at runtime. Runs after Build; the ProjectReference above guarantees the source exists. -->
+  <Target Name="CopyClaudeProbe" AfterTargets="Build">
+    <PropertyGroup>
+      <ClaudeProbeOutDir>$(MSBuildThisFileDirectory)..\ClaudeUsageProbe\bin\$(Configuration)\$(TargetFramework)\</ClaudeProbeOutDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <ClaudeProbePayload Include="$(ClaudeProbeOutDir)ClaudeUsageProbe.exe;
+                                   $(ClaudeProbeOutDir)ClaudeUsageProbe.dll;
+                                   $(ClaudeProbeOutDir)ClaudeUsageProbe.runtimeconfig.json;
+                                   $(ClaudeProbeOutDir)ClaudeUsageProbe.deps.json" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ClaudeProbePayload)"
+          DestinationFolder="$(OutDir)"
+          SkipUnchangedFiles="true"
+          OverwriteReadOnlyFiles="true" />
+    <!-- Hard guarantee: fail the build if the probe the runner will look for is not actually staged, so a
+         broken copy surfaces at build time instead of as a silent runtime "Claude n/a (fetch-error)". -->
+    <Error Condition="!Exists('$(OutDir)ClaudeUsageProbe.exe')"
+           Text="AIUsageTray build: ClaudeUsageProbe.exe was not staged into $(OutDir). ProcessClaudeProbeRunner resolves the probe next to the tray exe (AppContext.BaseDirectory) and cannot run without it. Expected source dir: $(ClaudeProbeOutDir)" />
+  </Target>
+
+  <!-- `dotnet publish` writes to $(PublishDir), which the Build-time CopyClaudeProbe target does not touch,
+       so the probe would be MISSING from a published/installed build (Claude → silent fetch-error). Stage the
+       same payload into the publish output too, with the same fail-closed guard. -->
+  <Target Name="CopyClaudeProbeOnPublish" AfterTargets="Publish">
+    <PropertyGroup>
+      <ClaudeProbeOutDir>$(MSBuildThisFileDirectory)..\ClaudeUsageProbe\bin\$(Configuration)\$(TargetFramework)\</ClaudeProbeOutDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <ClaudeProbePublishPayload Include="$(ClaudeProbeOutDir)ClaudeUsageProbe.exe;
+                                          $(ClaudeProbeOutDir)ClaudeUsageProbe.dll;
+                                          $(ClaudeProbeOutDir)ClaudeUsageProbe.runtimeconfig.json;
+                                          $(ClaudeProbeOutDir)ClaudeUsageProbe.deps.json" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ClaudeProbePublishPayload)"
+          DestinationFolder="$(PublishDir)"
+          SkipUnchangedFiles="true"
+          OverwriteReadOnlyFiles="true" />
+    <Error Condition="!Exists('$(PublishDir)ClaudeUsageProbe.exe')"
+           Text="AIUsageTray publish: ClaudeUsageProbe.exe was not staged into $(PublishDir). The published tray cannot launch the Claude probe without it." />
+  </Target>
+
+</Project>

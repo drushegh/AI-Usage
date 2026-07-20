@@ -1,0 +1,23 @@
+<Project>
+
+  <!--
+    ============================================================================
+    TODO(net10): DESIGN.md §2 settles on .NET 10 LTS. This machine currently has
+    only the .NET 9 SDK (9.0.304) installed; the .NET 10 SDK is NOT present, so
+    every project targets `net9.0-windows` and global.json pins 9.0.304 so the
+    build verifies today. When the .NET 10 SDK lands, this becomes two trivial
+    one-line bumps and nothing else here needs to move:
+      1. global.json  ->  "version": "<installed 10.x>"
+      2. each .csproj  ->  <TargetFramework>net10.0-windows</TargetFramework>
+    (net9.0-windows -> net10.0-windows). No API in this skeleton is 9-specific.
+    ============================================================================
+  -->
+
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+</Project>

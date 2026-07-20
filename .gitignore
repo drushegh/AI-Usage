@@ -1,0 +1,7 @@
+# .NET build artifacts (AI-Usage tray)
+bin/
+obj/
+*.user
+
+# publish output
+dist/

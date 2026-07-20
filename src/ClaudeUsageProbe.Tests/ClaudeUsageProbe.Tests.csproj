@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- TODO(net10): matches the probe's TFM. Referencing a net9.0-windows assembly (and the in-box
+         Windows ACL APIs the ACL tests craft) requires a Windows TFM here too; bump both together to
+         net10.0-windows when the .NET 10 SDK is installed. -->
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <!-- Test-only packages (xUnit + the .NET test SDK), pinned to the same versions as the other test
+       projects. No third-party RUNTIME package reaches ClaudeUsageProbe (DESIGN §2). -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <!-- Reference the probe so (a) its exe + runtimeconfig are built and copied next to this test
+       assembly and launched as a CHILD PROCESS for true end-to-end token-hygiene tests, and (b) the
+       InternalsVisibleTo-exposed pure helpers can be unit-tested in-process. -->
+  <ItemGroup>
+    <ProjectReference Include="..\ClaudeUsageProbe\ClaudeUsageProbe.csproj" />
+  </ItemGroup>
+
+  <!-- The DEFINITIVE E1 Claude fixture (single source of truth in spikes/) drives the stub-server 200
+       case: the probe must relay these exact bytes to stdout, verbatim. -->
+  <ItemGroup>
+    <None Include="..\..\spikes\e1-claude-payloads\raw-capture-1.json"
+          Link="Fixtures\raw-capture-1.json"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

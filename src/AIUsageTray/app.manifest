@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
+
+  <!--
+    Per-Monitor-V2 DPI awareness (DESIGN.md §2 / task T14). The WPF popup is anchored to the
+    notification area and can straddle monitors running at different scale factors; PerMonitorV2 lets
+    Windows re-render it crisply on DPI transitions instead of bitmap-stretching a blurry copy.
+
+    NOTE: this project enables UseWindowsForms (for the tray NotifyIcon), and the WinForms build
+    analyzer (WFO0003) OWNS the manifest DPI keys — declaring `dpiAwareness`/`dpiAware` here is a
+    hard build error. So DPI awareness is set the supported way for a WinForms-enabled process:
+    `Application.SetHighDpiMode(HighDpiMode.PerMonitorV2)` as the first line of Program.Main (which
+    calls SetProcessDpiAwarenessContext before any HWND exists, applying process-wide to the WPF
+    windows too). This manifest keeps only the Windows 10/11 compatibility declaration.
+  -->
+
+  <!-- Declare compatibility with Windows 10 / 11 so the modern DPI + notification-area behaviour is used. -->
+  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}" /> <!-- Windows 10 / 11 -->
+    </application>
+  </compatibility>
+
+</assembly>

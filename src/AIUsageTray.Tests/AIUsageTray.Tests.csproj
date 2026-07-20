@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- TODO(net10): matches the tray project's TFM. Referencing a net9.0-windows
+         assembly requires a Windows TFM here too; bump both together to
+         net10.0-windows when the .NET 10 SDK is installed. -->
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+
+    <!-- The assembly under test (AIUsageTray) enables WPF + WinForms, so the
+         WindowsDesktop framework must resolve at compile AND run time for its types
+         to load. Enabling them here pulls in that framework reference. No UI is
+         instantiated by the tests. -->
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <!-- Test-only packages (xUnit + the .NET test SDK). No third-party RUNTIME
+       package reaches the tray app (DESIGN.md §2). -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AIUsageTray\AIUsageTray.csproj" />
+  </ItemGroup>
+
+</Project>

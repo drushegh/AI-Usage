@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Console/stdout tool: the tray launches it with UseShellExecute=false + CreateNoWindow=true and
+         a redirected stdout pipe, so no console window is shown in production. OutputType=Exe (console
+         subsystem) keeps it trivially testable — a child process whose stdout is captured. -->
+    <OutputType>Exe</OutputType>
+    <!-- TODO(net10): net9.0-windows because only the .NET 9 SDK is installed here (see
+         Directory.Build.props / NOTES.md). The -windows TFM makes the Windows ACL / principal APIs
+         (System.Security.AccessControl, System.Security.Principal.Windows) available IN-BOX with zero
+         package references and satisfies the platform-compatibility analyzer (CA1416). Bump to
+         net10.0-windows with the rest of the solution when its SDK lands. -->
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <RootNamespace>ClaudeUsageProbe</RootNamespace>
+    <AssemblyName>ClaudeUsageProbe</AssemblyName>
+    <StartupObject>ClaudeUsageProbe.Program</StartupObject>
+
+    <!-- Small hardening: no ICU dependency; the probe needs no culture services. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!-- SECURITY (DESIGN §6): do NOT enable any crash-dump switch. The .NET runtime writes a minidump
+         ONLY when the environment sets DOTNET_DbgEnableMiniDump=1 (or the legacy COMPlus_ name); the
+         probe never sets it and the tray launcher must not either. There is deliberately no
+         <... minidump ...> property here. WER LocalDumps is machine policy (deployment step, see
+         Program.cs header); CrashHardening suppresses the crash UI at runtime, and the never-crash Main
+         design means no crash-report path is triggered in the first place. -->
+  </PropertyGroup>
+
+  <!-- Expose internal pure helpers to the test project ONLY (end-to-end token-hygiene tests run the
+       real exe as a child process; a few pure helpers are also unit-tested in-process). -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="ClaudeUsageProbe.Tests" />
+  </ItemGroup>
+
+  <!-- Zero third-party runtime NuGet packages (DESIGN §2/§6). BCL only:
+       HttpClient (System.Net.Http), System.Text.Json, and the in-box Windows ACL/principal APIs. -->
+
+</Project>
