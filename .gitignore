@@ -5,3 +5,8 @@ obj/
 
 # publish output
 dist/
+
+# WiX installer build output (staged publish payload + produced .msi)
+Installer/build/
+Installer/*.msi
+Installer/*.wixpdb

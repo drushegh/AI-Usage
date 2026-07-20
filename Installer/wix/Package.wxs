@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  AI-Usage — per-user Windows installer (WiX v5).
+
+  Design goals (see Installer/README.md):
+    * PER-USER, NO ELEVATION.  Scope="perUser" marks the package so Windows
+      Installer does NOT request admin rights; everything lands under the user
+      profile (LocalAppDataFolder) and HKCU only — never Program Files / HKLM.
+    * SELF-CONTAINED payload.  The staged publish folder ($(var.PayloadDir))
+      carries the .NET 9 runtime for BOTH AIUsageTray.exe and the sibling
+      ClaudeUsageProbe.exe, so the target machine needs no .NET prerequisite.
+    * Clean upgrades.  A stable UpgradeCode + MajorUpgrade means installing a
+      newer version removes the old one automatically.
+
+  ProductVersion and PublishDir are supplied by the .wixproj (<DefineConstants>),
+  which build-msi.ps1 sets after publishing.  Do NOT hard-code the payload path.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+
+  <Package
+      Name="AI-Usage"
+      Manufacturer="drushegh"
+      Version="$(var.ProductVersion)"
+      UpgradeCode="74AFA83F-CCC5-47E4-9F95-F0E038EEB82C"
+      Scope="perUser"
+      Compressed="yes"
+      InstallerVersion="500">
+
+    <!-- Marks the package per-user explicitly; harmless belt-and-braces alongside
+         Scope="perUser" and documents intent. ALLUSERS is deliberately left unset. -->
+    <Property Id="MSIINSTALLPERUSER" Value="1" />
+
+    <!-- Installing a newer version first removes any older one. Blocks downgrades
+         with a friendly message instead of a raw Windows Installer error. -->
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed. Uninstall it first if you want to install this older build." />
+
+    <!-- Single self-contained .msi (CAB embedded), no external media. -->
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Add/Remove Programs metadata. ARPNOREPAIR keeps the entry tidy (no
+         'Repair' button for a per-user xcopy-style app). -->
+    <Property Id="ARPNOREPAIR" Value="1" />
+
+    <!-- ============================ Directories ============================ -->
+    <!-- %LOCALAPPDATA%\Programs\AIUsage  — the same per-user location the
+         PowerShell installer used, so the two installers are interchangeable. -->
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="ProgramsFolder" Name="Programs">
+        <Directory Id="INSTALLFOLDER" Name="AIUsage" />
+      </Directory>
+    </StandardDirectory>
+
+    <!-- Start Menu (per-user Programs). The shortcut lives directly in the
+         Programs root as 'AI-Usage', matching the PS installer's AI-Usage.lnk. -->
+    <StandardDirectory Id="ProgramMenuFolder" />
+
+    <!-- ============================= Features ============================= -->
+    <!-- Core: the app payload + Start Menu shortcut. Always installed. -->
+    <Feature Id="MainApplication" Title="AI-Usage tray" Level="1" AllowAbsent="no">
+      <ComponentGroupRef Id="AppPayload" />
+      <ComponentRef Id="ApplicationShortcut" />
+    </Feature>
+
+    <!-- Optional (structurally): start-at-logon. Installed by default (Level 1)
+         to match the app's autostart default; a user can opt out with
+         `msiexec /i AIUsage-<ver>-win-x64.msi REMOVE=AutoStart`. -->
+    <Feature Id="AutoStart" Title="Start AI-Usage at logon" Level="1">
+      <ComponentRef Id="AutoStartRegistry" />
+    </Feature>
+
+    <!-- =========================== Minimal UI ============================= -->
+    <!-- A friendly double-click wizard (welcome -> license -> install -> finish)
+         so a non-technical user recognises it as an installer. -->
+    <ui:WixUI Id="WixUI_Minimal" />
+    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+  </Package>
+
+  <!-- ==================== Harvested self-contained payload ==================== -->
+  <!-- Recursively harvest the staged publish folder into INSTALLFOLDER, mirroring
+       its subdirectories. WiX auto-generates one Component (with a stable, path-
+       derived GUID) per file. This is the whole self-contained payload: both
+       AIUsageTray.exe and ClaudeUsageProbe.exe plus the bundled .NET runtime. -->
+  <Fragment>
+    <ComponentGroup Id="AppPayload" Directory="INSTALLFOLDER">
+      <Files Include="$(var.PayloadDir)\**" />
+    </ComponentGroup>
+  </Fragment>
+
+  <!-- ============================ Start Menu shortcut ============================ -->
+  <Fragment>
+    <Component Id="ApplicationShortcut" Directory="ProgramMenuFolder">
+      <Shortcut Id="AIUsageStartMenuShortcut"
+                Name="AI-Usage"
+                Description="AI-Usage — combined Claude + Codex usage tray"
+                Target="[INSTALLFOLDER]AIUsageTray.exe"
+                WorkingDirectory="INSTALLFOLDER" />
+      <!-- Per-user shortcut components need an HKCU key path (Windows Installer
+           requirement); this value also lets the component uninstall cleanly. -->
+      <RegistryValue Root="HKCU"
+                     Key="Software\drushegh\AIUsage"
+                     Name="StartMenuShortcut"
+                     Type="integer"
+                     Value="1"
+                     KeyPath="yes" />
+    </Component>
+  </Fragment>
+
+  <!-- ============================ Start-at-logon ============================ -->
+  <!-- HKCU Run entry pointing at the installed exe — the per-user autostart the
+       app expects. Its own component/feature so it can be excluded at install. -->
+  <Fragment>
+    <Component Id="AutoStartRegistry" Directory="INSTALLFOLDER">
+      <RegistryValue Root="HKCU"
+                     Key="Software\Microsoft\Windows\CurrentVersion\Run"
+                     Name="AIUsage"
+                     Type="string"
+                     Value="&quot;[INSTALLFOLDER]AIUsageTray.exe&quot;"
+                     KeyPath="yes" />
+    </Component>
+  </Fragment>
+
+</Wix>

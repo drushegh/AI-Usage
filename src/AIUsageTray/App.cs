@@ -813,10 +813,10 @@ public sealed class App : WpfApplication
             WindowMinutes: WindowClassifier.WeeklyMinutes,
             Label: "Weekly",
             DisplayState: DisplayState.Live,
-            Percent: 82.4m,
+            Percent: 12.0m,
             ObservedAt: now,
             ResetsAt: Metric.Available(now.AddHours(41).AddMinutes(12), now),
-            Severity: Severity.Warning,
+            Severity: Severity.Normal,
             ReasonCode: null);
 
         var datedFiveHour = new WindowView(
@@ -848,8 +848,8 @@ public sealed class App : WpfApplication
             StatusReasonCode: null,
             Windows: new[] { datedFiveHour, liveWeekly, naWindow },
             CreditsBalance: Metric.Available(12.4m, now),
-            PlanType: Metric.Available("Pro", now),
-            Severity: Severity.Warning,
+            PlanType: Metric.Available("Plus", now),
+            Severity: Severity.Normal,
             Unknown: true,
             AllUnknown: false);
 

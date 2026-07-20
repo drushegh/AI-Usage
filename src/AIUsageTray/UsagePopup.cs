@@ -326,11 +326,16 @@ public sealed class UsagePopup : Window
         headerPanel.Children.Add(Text("Usage across providers", _palette.SubtleText, 11.5, FontWeights.Normal));
 
         _cardsHost = new StackPanel { Margin = new Thickness(16, 8, 16, 8) };
+        // The popup sizes to its content (SizeToContent.Height) and must NOT show a scrollbar for the
+        // normal one/two-provider case. Cap the card region only at the screen's work area (minus room
+        // for the header, footer and taskbar), so a scrollbar appears solely in the extreme event that
+        // the content genuinely can't fit on screen — never for two cards.
+        double cardCap = System.Math.Max(240, SystemParameters.WorkArea.Height - 140);
         var scroll = new ScrollViewer
         {
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-            MaxHeight = CardScrollMaxHeight,
+            MaxHeight = cardCap,
             Content = _cardsHost,
         };
 

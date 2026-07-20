@@ -1,0 +1,57 @@
+<Project Sdk="WixToolset.Sdk/5.0.2">
+
+  <!--
+    Per-user AI-Usage MSI. Built with the WiX v5 MSBuild SDK, so `dotnet build`
+    on this project needs ONLY the .NET SDK — the SDK and the UI extension are
+    restored from NuGet. WiX v5 predates the v6/v7 "Open Source Maintenance Fee"
+    EULA gate, so there is no acceptance prompt to click through.
+
+    build-msi.ps1 drives this: it publishes the self-contained payload, then
+    invokes `dotnet build` here passing the two properties below, e.g.
+      dotnet build AIUsage.Installer.wixproj -c Release ^
+        -p:ProductVersion=1.0.0 ^
+        -p:PayloadDir=<abs path to staged self-contained publish folder>
+  -->
+
+  <PropertyGroup>
+    <OutputType>package</OutputType>
+
+    <!-- Overridable by build-msi.ps1 (-p:ProductVersion=...). First three fields
+         drive MajorUpgrade comparison; bump when releasing a new build. -->
+    <ProductVersion Condition="'$(ProductVersion)' == ''">1.0.0</ProductVersion>
+
+    <!-- Absolute path to the staged self-contained publish folder to harvest.
+         Named PayloadDir (NOT PublishDir — that is a reserved MSBuild property). -->
+    <PayloadDir Condition="'$(PayloadDir)' == ''">$(MSBuildThisFileDirectory)..\build\stage</PayloadDir>
+
+    <!-- Produced file name: AIUsage-<version>-win-x64.msi -->
+    <OutputName>AIUsage-$(ProductVersion)-win-x64</OutputName>
+
+    <!-- x64 package: the harvested payload is win-x64 self-contained. -->
+    <InstallerPlatform>x64</InstallerPlatform>
+
+    <!-- ICE38 + ICE64 are known false-positives for a PER-USER install whose
+         payload is a harvested file tree in the user profile:
+           ICE38 wants every profile component key-pathed on an HKCU registry
+                 value — impossible for 476 auto-harvested runtime files;
+           ICE64 wants every profile directory in the RemoveFile table.
+         Windows Installer 5.0 installs and removes per-user file components
+         correctly without these; suppressing them is the documented per-user
+         pattern. All OTHER ICE checks still run (SuppressValidation stays off).
+         ICE91 is added for the same reason: it merely observes that a fixed
+         per-user directory "won't be copied per-machine" — which is exactly the
+         intended (per-user-only) behaviour, not a defect. -->
+    <SuppressIces>ICE38;ICE64;ICE91</SuppressIces>
+
+    <!-- Surface these to the WiX preprocessor as $(var.ProductVersion) /
+         $(var.PayloadDir), consumed by Package.wxs. -->
+    <DefineConstants>ProductVersion=$(ProductVersion);PayloadDir=$(PayloadDir)</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- WixUI_Minimal dialog set (build-time WiX extension, not an app runtime
+         dependency — the "zero third-party runtime packages" rule is unaffected). -->
+    <PackageReference Include="WixToolset.UI.wixext" Version="5.0.2" />
+  </ItemGroup>
+
+</Project>
