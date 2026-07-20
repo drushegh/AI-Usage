@@ -1,5 +1,5 @@
 <!-- IMG-1: hero -->
-![Two thin instrument gauges on dark charcoal — the left arc lit amber and filled past halfway, the right arc muted teal and barely filled — a Claude dial and a Codex dial reading side by side on one panel.](assets/hero.png)
+![Two labelled ring gauges on a dark panel — a Claude dial reading 63% in amber and a Codex dial reading 12% in teal — above the line "one tray for your Claude and Codex limits: live, dated, or n/a, never estimated."](assets/hero.png)
 
 # AI-Usage
 
@@ -21,7 +21,7 @@ Two providers, two independent cards, one glance. **The states are the whole poi
 ## Live, dated, or gone — never wrong
 
 <!-- IMG-3: accuracy -->
-![Three stacked gauge bars: the top lit and filled in amber (live), the middle greyed and faded with a small timestamp tag (dated), the bottom an empty outline with a single dash where a value would be (n/a) — the same reading shown three honest ways.](assets/accuracy-states.png)
+![The same reading shown three honest ways: a LIVE row with a solid amber bar at 42%, a DATED row with a greyed bar reading "as of 14:32", and an n/a row that is an empty dashed outline with a single dash — each row labelled with its state and what it means.](assets/accuracy-states.png)
 
 Most usage widgets will happily show you a number that stopped being true ten minutes ago. This one won't. A figure is presented as **current only** when it is provider-reported, validated, and inside its freshness window. The moment that stops being true, it changes state in front of you:
 
@@ -36,7 +36,7 @@ There is **no estimator anywhere in the code** — no interpolation, no burn-rat
 ## Your token barely moves
 
 <!-- IMG-4: trust boundary -->
-![A sealed key held inside a boundary on the left; a single amber path leaves it, reaches one distant node, and returns; a separate teal panel sits nearby, connected to nothing — the credential's one guarded round trip, and the tray that never holds it.](assets/trust.png)
+![A trust-boundary diagram: inside a "your machine" boundary the Claude OAuth token is read only by a short-lived helper, which makes one HTTPS request (redirects off) to a single allow-listed host and passes only the returned figures to the tray; the tray and the local Codex files never touch the token.](assets/trust.png)
 
 The Claude side reads a local OAuth token, so the design is a set of invariants you can check against the source — not a paragraph of reassurance:
 
@@ -47,25 +47,7 @@ The Claude side reads a local OAuth token, so the design is a set of invariants 
 - One provider failing or returning garbage **cannot change the other's state.** They run in isolation.
 - **Zero third-party runtime packages.** The code that can see your credential is this repository plus the .NET runtime — full stop.
 
-```mermaid
-flowchart LR
-  subgraph machine["Your machine"]
-    token["Claude OAuth token
-(local credential)"]
-    helper["Short-lived helper
-exits after each fetch"]
-    tray["Tray app
-never reads the token"]
-    codexfiles["Codex CLI local files"]
-  end
-  api["One allowlisted API host"]
-  token --> helper
-  helper -->|"HTTPS · redirects disabled"| api
-  helper -->|"figures only"| tray
-  codexfiles -->|"local reads · no network"| tray
-```
-
-There is no line between the Claude lane and the Codex lane. That absence *is* the isolation guarantee.
+There is no path between the Claude lane and the Codex lane — you can see it in the diagram above: two separate colours reaching the tray, never each other. That absence *is* the isolation guarantee.
 
 ## What it shows
 
