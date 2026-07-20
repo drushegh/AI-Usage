@@ -2,8 +2,8 @@
 
 The primary installer is a **per-user `.msi`**: double-click, no administrator
 rights, and no .NET prerequisite (the runtime is bundled). It installs to
-`%LOCALAPPDATA%\Programs\AIUsage`, adds a Start Menu shortcut, and starts the
-tray at logon.
+`%LOCALAPPDATA%\Programs\AIUsage`, adds a Start Menu shortcut, launches the
+tray when setup finishes, and starts it again at every logon.
 
 The PowerShell scripts (`install.ps1` / `uninstall.ps1`) are kept as a
 **developer / from-source** alternative — smaller, but they build from source and
@@ -17,8 +17,9 @@ need the .NET 9 SDK + Desktop Runtime installed. Most people should use the `.ms
 2. If Windows SmartScreen appears (see below), choose **More info -> Run anyway**.
 3. Follow the short wizard (Welcome -> Install -> Finish).
 
-That's it — no "Run as administrator", no .NET download. The tray launches at the
-next logon (and you can start it now from the Start Menu).
+That's it — no "Run as administrator", no .NET download. Leave **"Launch AI-Usage
+now"** ticked on the final page and the tray starts immediately — and again at
+every logon after.
 
 > **SmartScreen (unsigned installer).** This `.msi` is **not code-signed**, so on
 > a machine that hasn't seen it before Windows may show
@@ -39,7 +40,7 @@ next logon (and you can start it now from the Start Menu).
 ### Don't want start-at-logon?
 Autostart is its own MSI feature, installed by default. To install **without** it:
 ```powershell
-msiexec /i AIUsage-1.0.0-win-x64.msi REMOVE=AutoStart
+msiexec /i AIUsage-1.0.1-win-x64.msi REMOVE=AutoStart
 ```
 (You can always toggle it later from the app's own settings.)
 
@@ -50,7 +51,7 @@ and installs the new one in place (no need to uninstall first).
 ### Uninstall
 **Settings -> Apps -> Installed apps -> AI-Usage -> Uninstall**, or:
 ```powershell
-msiexec /x AIUsage-1.0.0-win-x64.msi
+msiexec /x AIUsage-1.0.1-win-x64.msi
 ```
 This removes the app, the shortcut, and the autostart entry. Your
 `%LOCALAPPDATA%\AIUsage\config.json` is left in place.
@@ -67,7 +68,7 @@ drops the `.msi` next to itself in `Installer/`.
 
 ```powershell
 # from the Installer/ folder:
-./build-msi.ps1                 # -> Installer/AIUsage-1.0.0-win-x64.msi
+./build-msi.ps1                 # -> Installer/AIUsage-1.0.1-win-x64.msi
 ./build-msi.ps1 -Version 1.2.0  # set the product version
 ```
 
@@ -93,7 +94,7 @@ it standalone, use the WiX CLI pinned in this project's local tool manifest
 (`.config/dotnet-tools.json` — WiX v5, so no v6/v7 EULA gate):
 ```powershell
 dotnet tool restore
-dotnet wix msi validate -sice ICE38 -sice ICE64 -sice ICE91 .\AIUsage-1.0.0-win-x64.msi
+dotnet wix msi validate -sice ICE38 -sice ICE64 -sice ICE91 .\AIUsage-1.0.1-win-x64.msi
 ```
 `ICE38`/`ICE64`/`ICE91` are suppressed because they are known false-positives for
 a per-user install whose payload lives in the user profile (see the comments in

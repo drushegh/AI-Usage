@@ -16,7 +16,8 @@
   which build-msi.ps1 sets after publishing.  Do NOT hard-code the payload path.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
-     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
 
   <Package
       Name="AI-Usage"
@@ -74,6 +75,34 @@
          so a non-technical user recognises it as an installer. -->
     <ui:WixUI Id="WixUI_Minimal" />
     <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+
+    <!-- ==================== Launch the tray when setup finishes ==================== -->
+    <!-- The HKCU Run entry (AutoStart feature) only starts the tray at the NEXT logon,
+         so on a fresh install the app would not appear until the user logs off/on or
+         opens it from the Start Menu. Add a checked-by-default "Launch AI-Usage now"
+         box to the finish page that starts it immediately in the USER's context
+         (Impersonate="yes"), so the tray is running the moment setup closes. It only
+         fires on a first-time/upgrade install (NOT Installed) — never on uninstall or
+         repair. WixShellExec ShellExecutes the target path and returns at once (it does
+         not wait for the tray to exit). -->
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch AI-Usage now" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+    <!-- Resolve [INSTALLFOLDER] at RUNTIME. A static <Property Value="[INSTALLFOLDER]..."> would
+         store the literal string "[INSTALLFOLDER]AIUsageTray.exe" (WiX1077) and the launch would
+         fail; SetProperty formats the value during the sequence, once CostFinalize has resolved the
+         install directory, so WixShellExecTarget becomes the real absolute path. -->
+    <SetProperty Id="WixShellExecTarget"
+                 Value="[INSTALLFOLDER]AIUsageTray.exe"
+                 After="CostFinalize"
+                 Sequence="both" />
+    <CustomAction Id="LaunchApplication"
+                  DllEntry="WixShellExec"
+                  BinaryRef="Wix4UtilCA_X64"
+                  Impersonate="yes" />
+    <UI>
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchApplication"
+               Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed" />
+    </UI>
   </Package>
 
   <!-- ==================== Harvested self-contained payload ==================== -->
