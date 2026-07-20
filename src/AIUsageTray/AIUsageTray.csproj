@@ -45,7 +45,13 @@
        resolves at runtime. Runs after Build; the ProjectReference above guarantees the source exists. -->
   <Target Name="CopyClaudeProbe" AfterTargets="Build">
     <PropertyGroup>
-      <ClaudeProbeOutDir>$(MSBuildThisFileDirectory)..\ClaudeUsageProbe\bin\$(Configuration)\$(TargetFramework)\</ClaudeProbeOutDir>
+      <ClaudeProbeBinBase>$(MSBuildThisFileDirectory)..\ClaudeUsageProbe\bin\$(Configuration)\$(TargetFramework)\</ClaudeProbeBinBase>
+      <!-- A RID build (`dotnet publish -r <rid>`) propagates the RID to this ProjectReference, so the
+           probe's output lands under a RID subfolder (bin\<cfg>\<tfm>\<rid>\); a plain build (e.g. tests)
+           puts it directly under the TFM folder. The probe is a ProjectReference so it is already built
+           when this target runs — pick whichever layout actually exists so a clean clone builds either way. -->
+      <ClaudeProbeOutDir Condition="'$(RuntimeIdentifier)' != '' and Exists('$(ClaudeProbeBinBase)$(RuntimeIdentifier)\ClaudeUsageProbe.exe')">$(ClaudeProbeBinBase)$(RuntimeIdentifier)\</ClaudeProbeOutDir>
+      <ClaudeProbeOutDir Condition="'$(ClaudeProbeOutDir)' == ''">$(ClaudeProbeBinBase)</ClaudeProbeOutDir>
     </PropertyGroup>
     <ItemGroup>
       <ClaudeProbePayload Include="$(ClaudeProbeOutDir)ClaudeUsageProbe.exe;
@@ -68,7 +74,13 @@
        same payload into the publish output too, with the same fail-closed guard. -->
   <Target Name="CopyClaudeProbeOnPublish" AfterTargets="Publish">
     <PropertyGroup>
-      <ClaudeProbeOutDir>$(MSBuildThisFileDirectory)..\ClaudeUsageProbe\bin\$(Configuration)\$(TargetFramework)\</ClaudeProbeOutDir>
+      <ClaudeProbeBinBase>$(MSBuildThisFileDirectory)..\ClaudeUsageProbe\bin\$(Configuration)\$(TargetFramework)\</ClaudeProbeBinBase>
+      <!-- A RID build (`dotnet publish -r <rid>`) propagates the RID to this ProjectReference, so the
+           probe's output lands under a RID subfolder (bin\<cfg>\<tfm>\<rid>\); a plain build (e.g. tests)
+           puts it directly under the TFM folder. The probe is a ProjectReference so it is already built
+           when this target runs — pick whichever layout actually exists so a clean clone builds either way. -->
+      <ClaudeProbeOutDir Condition="'$(RuntimeIdentifier)' != '' and Exists('$(ClaudeProbeBinBase)$(RuntimeIdentifier)\ClaudeUsageProbe.exe')">$(ClaudeProbeBinBase)$(RuntimeIdentifier)\</ClaudeProbeOutDir>
+      <ClaudeProbeOutDir Condition="'$(ClaudeProbeOutDir)' == ''">$(ClaudeProbeBinBase)</ClaudeProbeOutDir>
     </PropertyGroup>
     <ItemGroup>
       <ClaudeProbePublishPayload Include="$(ClaudeProbeOutDir)ClaudeUsageProbe.exe;
