@@ -639,8 +639,9 @@ public sealed class UsagePopup : Window
     /// <summary>
     /// The owner's manually-entered Codex weekly-reset schedule (<see cref="Fallbacks"/>), shown ONLY when
     /// the weekly window's own <c>ResetsAt</c> is not available — never overrides a provider-reported reset.
-    /// Rendered in <see cref="Theme.InkMuted"/> with NO live countdown treatment: it is the owner's own
-    /// schedule, clearly attributed, never styled as provider-reported LIVE data (owner-feedback r4).
+    /// Rendered in <see cref="Theme.InkMuted"/> with a live countdown to the owner's OWN configured time
+    /// (deterministic, not a provider estimate), always tagged "· your setting" so it never reads as a
+    /// provider-reported LIVE figure (owner-feedback r4).
     /// </summary>
     private FrameworkElement? BuildCodexWeeklyResetFallback(WindowView window, DateTimeOffset now)
     {
@@ -656,7 +657,12 @@ public sealed class UsagePopup : Window
             return null;
         }
 
-        return Text($"resets {UsageFormat.AbsoluteLocal(reset, now)} · your setting", Theme.InkMuted, 11.5, FontWeights.Normal, topMargin: 6);
+        // The owner set this schedule, so a countdown to it is exact + honest (not a provider estimate).
+        // Register it as a live countdown cell — same ticking treatment as a provider reset — kept muted
+        // and suffixed "· your setting" so it can never be mistaken for a provider-reported figure.
+        var line = Text(string.Empty, Theme.InkMuted, 11.5, FontWeights.Normal, topMargin: 6);
+        _countdowns.Add(new CountdownCell(line, UsageFormat.AbsoluteLocal(reset, now), reset, " · your setting"));
+        return line;
     }
 
     private FrameworkElement BuildMetaBlock(ProviderView provider)
@@ -989,20 +995,22 @@ public sealed class UsagePopup : Window
         private readonly TextBlock _target;
         private readonly string _absolute;
         private readonly DateTimeOffset _resetsAt;
+        private readonly string _suffix;
 
-        public CountdownCell(TextBlock target, string absolute, DateTimeOffset resetsAt)
+        public CountdownCell(TextBlock target, string absolute, DateTimeOffset resetsAt, string suffix = "")
         {
             _target = target;
             _absolute = absolute;
             _resetsAt = resetsAt;
+            _suffix = suffix;
         }
 
         public void Update(DateTimeOffset now)
         {
             var remaining = _resetsAt - now;
             _target.Text = remaining > TimeSpan.Zero
-                ? $"resets {_absolute} · in {UsageFormat.Countdown(remaining)}"
-                : $"resets {_absolute}";
+                ? $"resets {_absolute} · in {UsageFormat.Countdown(remaining)}{_suffix}"
+                : $"resets {_absolute}{_suffix}";
         }
     }
 
