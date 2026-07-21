@@ -18,7 +18,7 @@
 
     <!-- Overridable by build-msi.ps1 (-p:ProductVersion=...). First three fields
          drive MajorUpgrade comparison; bump when releasing a new build. -->
-    <ProductVersion Condition="'$(ProductVersion)' == ''">1.0.2</ProductVersion>
+    <ProductVersion Condition="'$(ProductVersion)' == ''">1.0.3</ProductVersion>
 
     <!-- Absolute path to the staged self-contained publish folder to harvest.
          Named PayloadDir (NOT PublishDir — that is a reserved MSBuild property). -->

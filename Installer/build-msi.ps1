@@ -27,7 +27,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string] $Version       = '1.0.2',
+    [string] $Version       = '1.0.3',
     [string] $Runtime       = 'win-x64',
     [string] $Configuration = 'Release'
 )
