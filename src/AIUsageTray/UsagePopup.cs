@@ -595,6 +595,15 @@ public sealed class UsagePopup : Window
         chip.Margin = new Thickness(0, 6, 0, 0);
         row.Children.Add(chip);
 
+        // Owner-set Codex weekly-reset fallback — a DATED window's own reset is stale and deliberately not
+        // shown here, so the owner's configured schedule fills the gap (muted + "· your setting"). This is the
+        // case the owner hit: a DATED Codex weekly previously showed no reset countdown at all.
+        var fallback = BuildCodexWeeklyResetFallback(window, now);
+        if (fallback is not null)
+        {
+            row.Children.Add(fallback);
+        }
+
         AutomationProperties.SetName(row,
             $"{window.Label} current value not available. Last known {UsageFormat.Percent(percent)} percent as of {UsageFormat.AbsoluteLocal(observedAt, now)}");
         return row;
@@ -645,7 +654,12 @@ public sealed class UsagePopup : Window
     /// </summary>
     private FrameworkElement? BuildCodexWeeklyResetFallback(WindowView window, DateTimeOffset now)
     {
-        if (window.ResetsAt.State == MetricState.Available)
+        // Skip ONLY when a current (LIVE) provider reset is actually being shown. A DATED window carries a
+        // STALE reset (Available, but the DATED grammar deliberately never displays it, to avoid stale-as-
+        // current), and an n-a window has none — in both cases there is no current reset on screen, so the
+        // owner's own schedule fills the gap. (This is the case the owner hit: a DATED Codex weekly showed no
+        // countdown because its stale reset was still "Available".)
+        if (window.DisplayState == DisplayState.Live && window.ResetsAt.State == MetricState.Available)
         {
             return null;
         }
